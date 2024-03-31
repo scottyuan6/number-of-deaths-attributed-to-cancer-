@@ -1,0 +1,42 @@
+library(AER)
+# Assuming 'model' is your fitted Poisson regression model
+dispersiontest(model)
+
+library(car)
+# Assuming your model formula is as follows
+model_formula <- Deaths_Attributed_to_Cancer ~ Year + as.factor(Hospital)
+vif_model <- vif(glm(model_formula, data=df, family="poisson"))
+print(vif_model)
+
+# Basic residual plot
+plot(residuals(model, type = "pearson") ~ fitted.values(model), 
+     xlab = "Fitted Values", ylab = "Pearson Residuals")
+abline(h = 0, col = "red")
+
+library(broom)
+# Calculate Cook's distance
+cooks_d <- augment(model)$.cooksd
+
+# Plot Cook's distance
+plot(cooks_d, type="h", main="Cook's Distance", ylab="Cook's distance")
+abline(h = 0.5, col = "blue") # Threshold might vary
+
+# Identify observations with high Cook's distance
+high_cooks_d <- which(cooks_d > 0.5) # Adjust threshold as needed
+
+# Exclude these observations and refit the model
+df_excluded <- df[-high_cooks_d, ]
+model_excluded <- glm(model_formula, data=df_excluded, family="poisson")
+
+# Compare the models
+summary(model)
+summary(model_excluded)
+
+library(multcomp)
+# Pairwise comparisons for the 'Hospital' factor
+glht_model <- glht(model, linfct = mcp(Hospital = "Tukey"))
+summary(glht_model)
+
+# Calculate Odds Ratios and 95% CI for predictors
+exp(coef(model))  # Odds ratios
+exp(confint(model))  # Confidence intervals
